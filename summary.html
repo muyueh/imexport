@@ -1,0 +1,527 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Import/Export</title>
+<script type="text/javascript" src="//cdnjs.cloudflare.com/ajax/libs/d3/3.4.1/d3.min.js" charset="utf-8"></script>
+</head>
+<body>
+	<img src="http://muyueh.com/seeall/image/imexportsum.jpeg" style="display:none;"> 
+<script type="text/javascript">
+
+// Your beautiful D3 code will go here
+
+
+
+var highlightData = [];
+// var tableHeader = function(){
+
+// };
+
+
+var periodHeatMap = function(){
+	var minR = 3;
+	var opacity = 0.5;
+
+	var cutHead = function(string){
+		var head = string.slice(0, 1);
+		var tail = string.slice(1);
+		return "<span class='dhead' style='font-weight: 900'>" + head + "</span>" + "<span class='drest' style='opacity:" + opacity + "'>" + tail + "</span>";
+	};
+
+	var Brkunit = 3;
+	var addSpace = function(string){
+		if(string.length > Brkunit ){
+			var l = string.length;
+			var head = string.slice(0, l - Brkunit);
+			var tail = string.slice(-Brkunit);
+
+			return addSpace(head) + " " + tail;
+		}
+		else{
+			return string;
+		}
+	};
+
+	var ioo = "in";
+	var bColor = "red";
+
+
+// should customized accessor
+	var Draw = function(selection){		
+		selection.each(function(d, i){			
+			// console.log(d);
+
+			if(ioo === "out"){
+				var tdName = d3.select(this)
+					// .append("td")
+					.insert("td", ".svgSparkL")
+					.text(d.good_data.name)				
+					.attr({
+						"class": "spanChName",
+						// "width": "330px"
+						// "width": "250px"
+						"width": "200px"
+						// "width": "150px"
+					})
+					.style({
+						"padding-left":  (d.good_data.id.length - 2) + "em",
+						"font-size": "12px"
+					});
+			}
+
+
+			var dataPer = d3.entries(d[ioo]["period"]);
+			// console.log(dataPer);
+			var heatScale = d3.scale
+				.sqrt()
+				// .linear()
+				.domain(d3.extent(dataPer, function(f){
+					return f["value"]["average"];
+				}))
+				.range([0.1, 1]);
+
+			var svgPer = d3.select(this)
+				.insert("td", ".heatDots")
+				.attr({
+					"class": "heatDots"
+				})
+				.append("svg")
+				.attr({
+					"width": "75px",
+					"height": "18px"
+				});
+			if(!d[ioo]["empty"]){
+				svgPer.selectAll("circle")
+					.data(dataPer)
+					.enter()
+					.append("circle")
+					.attr({
+						"r": minR,
+						"cx": function(d, i){ return minR + i * minR * 2; },
+						"cy": 9
+					})
+					.style({
+						"fill": bColor,
+						"opacity": function(d){
+							return heatScale(d["value"]["average"]);
+						}
+					});	
+			}
+			
+
+			var sumScale = d3.scale
+				.linear()
+				.domain([0,100000])
+				.range([0.1, 1]);
+
+
+			var spanVal = d3.select(this)
+				.insert("td", ".spanVal")
+				.attr({
+					"align": function(){ 
+						return (ioo === "out") ? "right" : "left" },
+					"class": "spanVal"
+				});
+				
+			spanVal
+				.selectAll("span")
+				.data([d[ioo]["stats"]["sum"]])
+				.enter()
+				.append("span")
+				.attr({
+					"width": "60px",
+					"height": "18px"
+					// "align": "right"
+				})
+				.html(function(d){ 
+					return cutHead(
+						addSpace(
+							(d + "")
+							)
+						);
+				})
+				.style({
+					"font-family": "monospace",
+					// "font-size": "18px"
+					"font-size": "13px",
+					"color": bColor
+				})
+				// .attr({
+				// 	"align": "right"
+
+
+
+
+			var dataTen = d3.entries(d[ioo]["stats"]["tenPoint"]);
+
+			dataTen = dataTen.filter(function(d, i){
+				d.key = +d.key;
+				return true;
+			});
+
+			// console.log(dataTen);
+
+			var xTen = d3.scale.linear().domain([2003, 2013]).range([0, 60]);
+			var yTen = d3.scale.linear().domain([0, d3.max(dataTen, function(d){ return d.value; })]).range([0, 18]);
+
+			// console.log(d3.max(dataTen, function(d){ return d.value; }));
+
+
+			var areaFunc = d3.svg.area()
+				.x(function(d) { return xTen(d.key); })
+				.y0(function(d) { return 18 - yTen(d.value); })
+				.y1(18)
+				.interpolate("basis");
+
+			var svgSparkL = d3.select(this)
+				.insert("td", ".svgSparkL")
+				.attr({
+					"class": "svgSparkL"
+				})
+				.append("svg")
+				.attr({
+					"width": "60px",
+					"height": "18px"
+				});
+
+			svgSparkL
+				.selectAll("path")				
+				.data([dataTen])
+				.enter()
+				.append("path")
+				.attr({
+					"d":function(d){ 
+						// console.log(d);
+						return areaFunc(d);
+					},
+					// "fill": "orange",
+					"fill": bColor,
+					"opacity": opacity,
+					"stoke-width": "1px",
+					"stroke": "black"
+				});
+
+
+			var divCom = d3.select(this)
+				.insert("td", ".divCom")
+				.attr({
+					"class":"divCom"
+				})
+				.selectAll("span")
+				.data([d[ioo]["composition"]])
+				.enter();
+
+			var spanCom = divCom
+				.append("span")
+				.filter(function(f){
+					return (f.length)? true : false;					
+				})
+				.text(function(f){ 
+					// getFlag(f[1]["Country"]);
+					// console.log(f[1]);
+					if(flgTable[f[1]["Country"]] === undefined){
+						console.log(f[1]["Country"]);
+						return f[1]["Country"][0];
+					}
+					else{
+						return ""
+					}
+				});
+
+			if(d[ioo]["composition"][1] !== undefined && flgTable[d[ioo]["composition"][1]["Country"]] !== undefined){
+				spanCom					
+					.append("img")
+					.attr({
+						"src" : function(f){ 					
+							return ("./flag/" + flgTable[f[1]["Country"]]+ ".svg"); },
+						"width": "15px",
+						"height": "15px"
+					});	
+			}
+			
+
+		if(d[ioo]["composition"].length){
+			var color =  d3.scale.category10();
+			var stacked = 0;
+			var countryData = d[ioo]["composition"].filter(function(f, j){
+				if(j){
+					f.x0 = stacked;
+					stacked += f.Value;
+					return true;
+				}
+				return false;
+			});
+
+			var stackedScale = d3.scale.linear().domain([0, stacked]).range([0, 80]);
+
+			divCom
+				.append("svg")
+				.attr({
+					// "width": "80px",
+					"width": "40px",
+					"height": "18px",					
+				})
+				.style({
+					"margin-left": "5px"
+				})
+				.selectAll("rect")
+				.data(countryData)
+				.enter()
+				.append("rect")
+				.attr({
+					"height": 4,
+					"width": function(d,i){ return stackedScale(d.Value); },
+					"x": function(d,i){ return stackedScale(d.x0); },
+					"y": 8
+				})
+				.style({
+					"fill": function(d, i){ return bColor; },
+					"opacity": function(d, i){ return 0.1 + ((i + 1) % 2) * 0.5  ;}
+				});
+	
+		}
+
+		var spanPrice = d3.select(this)
+			.insert("td", ".avg_price")
+			.attr({
+				"align": function(){ return (ioo === "out") ? "right" : "left" },
+				// "align":"right",
+				 "class":"avg_price"
+			})
+
+		spanPrice
+			.selectAll("span")
+			.data([d[ioo]["stats"]["avg_price"]])
+			.enter()
+			.append("span")
+			.attr({
+				"width": "60px",
+				"height": "18px"
+				// "align": "right"
+			})
+			.html(function(d){ 
+				return cutHead(
+					addSpace(
+						(Math.floor(d * 1000) + "")
+						)
+					);
+			})
+			.style({
+				"font-family": "monospace",
+				// "font-size": "18px"
+				"font-size": "13px",
+				"color": bColor
+			});
+
+		});
+		
+	};
+
+	Draw.inOrOut = function(_in){
+		if(!arguments.length){ return ioo; }
+		ioo = _in;
+		return Draw;
+	}
+
+	Draw.baseColor = function(_in){
+		if(!arguments.length){ return bColor; }
+		bColor = _in;
+		return Draw;
+	}
+
+	Draw.opacity = function(_in){
+		if(!arguments.length){ return opacity; }
+		opacity = _in;
+		return Draw;
+	}
+
+	return Draw;
+};
+
+
+
+var adjustHeaderWidth = function(){
+	var newWidth = d3.select(".good_container").select("tr").selectAll("td")[0].map(function(d, i){
+		return d.offsetWidth;
+	});
+
+	d3.selectAll(".headerName")
+		.attr("width", function(d, i){ return newWidth[i] - 2 });
+
+	return newWidth;
+};
+
+var adjustHeaderHeight = function(){
+	d3.selectAll(".placeholder").style({ "height": d3.select(".header_container").style("height")});
+};
+
+
+var color = d3.scale.category10();
+
+d3.json("summaryGood5.json", function(err, jsonData){
+	console.log(jsonData);
+
+	var aHeatMap = periodHeatMap().baseColor(color(1));
+	var bHeatMap = periodHeatMap().inOrOut("out").baseColor(color(3));
+
+	var tableAHeatMap = periodHeatMap().baseColor(color(1)).opacity(1);
+	var tableBHeatMap = periodHeatMap().inOrOut("out").baseColor(color(3)).opacity(1);
+
+	var title = ["出口季節", "進口季節", "出口值", "進口值", "名稱", "出十年", "進十年", "出分佈", "進分佈", "出價", "進價"]; 
+
+
+
+
+	d3.select("body")
+		.insert("div", ".good_container")
+		.attr({
+			"class": "header_container"
+		})
+		.style({
+			"position": "fixed",
+			"background-color": "white",
+			"z-index": 10
+		})
+		.append("table")
+		.style({
+			"border": "1px #98df8a solid"
+		})
+		.append("tr")
+		.selectAll("td")
+		.data(title)
+		.enter()
+		.append("td")
+		.attr({
+			"class": "headerName"
+		})
+		.style({
+			"background-color": "white"
+		})
+		.text(function(d){ return d;})
+		.style({
+			"text-align":function(d, i){
+				if(d ===  "出口值" || d === "出十年" || d === "出分佈" || d === "出價"){
+					return "right"; 
+				}
+				else if(d ===  "進口值" || d === "進十年" || d === "進分佈" || d === "進價"){
+					return "left";
+				}
+				return "center"
+			},
+			 "color": function(d, i){ 
+			 	if(d === "名稱"){
+			 		return "black"
+			 	}
+			 	return (d.indexOf("出"))? "rgb(31, 119, 180)" :  "rgb(255, 127, 14)"; 
+			 },
+			 "font-size": "14px"
+		});
+
+	d3.select("body")
+		.insert("div", ".good_container")
+		.attr({
+			"class": "placeholder"
+			
+		})
+		.style({
+			"height": d3.select(".header_container").style("height")
+		});
+
+	d3.select("body")
+		.append("div")
+		.attr({
+			"class": "good_container"
+		})
+		.append("table");
+	
+
+//draw line by line; 
+//might not be a good idea; can't get global max min for scale
+
+	var lstItm = {"id": "01", "invalue": 0, "outvalue": 0};
+	//to delete repeated item
+
+		var creatingTable = function(_d){
+			if( lstItm.invalue === _d["in"]["stats"]["sum"] && 
+				lstItm.outvalue === _d.out.stats.sum && 
+				lstItm.id === _d.good_data.id.slice(0, lstItm.id.length)
+				){
+					//do nothing
+				}
+			else{
+				d3.select(".good_container")
+					.select("table")
+					.append("tr")
+					.datum(_d)
+					.on("mouseover", function(){
+						d3.select(this)
+							.classed("trOver", true);
+					})
+					.on("mouseout", function(){
+						d3.select(this)
+							.classed("trOver", false);
+					})
+					.on("mousedown", function(){
+
+						d3.select(".header_container")
+							.select("table")
+							.append("tr")
+							.datum(_d)
+							.on("mousedown", function(d){
+								d3.select(this).remove();
+								adjustHeaderHeight();
+							})
+							.call(tableAHeatMap)
+							.call(tableBHeatMap);
+
+						adjustHeaderHeight();						
+					})
+					.call(aHeatMap)
+					.call(bHeatMap);
+
+				lstItm.id = _d.good_data.id;
+				lstItm.invalue = _d["in"]["stats"]["sum"];
+				lstItm.outvalue = _d.out.stats.sum;
+			}
+		}
+
+	jsonData.forEach(function(d, i){
+		creatingTable(d);
+
+//callBack
+		if(i === jsonData.length - 1){
+			adjustHeaderWidth();
+		}
+	});
+
+
+	
+});
+
+//flag lookup
+var flgTable = {"格陵蘭":"gl","吉布提":"dj","牙買加":"jm","奧地利":"at","巴布亞新幾內亞":"pg","基里巴斯":"ki","斯威士蘭":"sz","馬約特島":"yt","文萊":"bn","剛果民主共和國":"cg","贊比亞":"zm","安哥拉":"ao","博茨瓦納":"bw","津巴布韋":"zw","聖文森特和格林納丁斯":"vc","波多黎各":"pr","日本":"jp","納米比亞":"na","聖赫勒拿島阿森松島和特里斯坦達庫尼亞":"sh","塔吉克斯坦":"tj","聖盧西亞":"lc","摩洛哥":"ma","瓦努阿圖":"vu","馬耳他":"mt","薩爾瓦多":"sv","蒙古":"mn","北馬里亞納群島":"mp","意大利":"it","留尼汪島":"re","薩摩亞":"ws","庫拉索島":"cw","法國":"fr","埃及":"eg","烏茲別克斯坦":"uz","帕勞":"pw","利比里亞":"lr","托克勞":"tk","盧旺達":"rw","美國本土外小島嶼":"um","突尼斯":"tn","比利時":"be","愛沙尼亞":"ee","庫克群島":"ck","白俄羅斯":"by","萊索托":"ls","南朝鮮":"kr","挪威":"no","沙特阿拉伯":"sa","南非":"za","葡萄牙":"pt","布基納法索":"bf","加拿大":"ca","亞美尼亞":"am","喀麥隆":"cm","蘇里南":"sr","馬達加斯加":"mg","尼泊爾":"np","不丹":"bt","波蘭":"pl","中非共和國":"cf","加蓬":"ga","土庫曼斯坦":"tm","阿拉伯聯合酋長國":"ae","波斯尼亞和黑塞哥維那":"ba","泰國":"th","開曼群島":"ky","老撾":"la","科科斯群島":"cc","菲律賓":"ph","尼加拉瓜":"ni","法國南部領土":"tf","新喀裡多尼亞":"nc","關島":"gu","哈薩克斯坦":"kz","斯瓦爾巴德群島":"sj","緬甸":"mm","瑙魯":"nr","多米尼克":"dm","尼日爾":"ne","安道​​爾":"ad","湯加":"to","毛里塔尼亞":"mr","瑞典":"se","阿塞拜疆":"az","阿富汗":"af","南喬治亞島和南桑威奇群島":"gs","尼日利亞":"ng","肯尼亞":"ke","貝寧":"bj","黑山":"me","奧蘭群島":"ax","阿曼":"om","英屬維爾京群島":"vg","越南":"vn","阿爾及利亞":"dz","也門":"ye","象牙海岸":"ci","斯里蘭卡":"lk","印尼":"id","密克羅尼西亞":"fm","格魯吉亞":"ge","岡比亞":"gm","聖誕島":"cx","拉脫維亞":"lv","黎巴嫩":"lb","俄羅斯":"ru","福克蘭群島":"fk","德國":"de","芬蘭":"fi","馬爾代夫":"mv","盧森堡":"lu","皮特凱恩":"pn","委內瑞拉":"ve","巴林":"bh","直布羅陀":"gi","羅馬尼亞":"ro","瓦利斯群島和富圖納群島":"wf","瓜德羅普島":"gp","印度":"in","阿根廷":"ar","維爾京群島":"vi","圖瓦盧":"tv","阿魯巴":"aw","塞內加爾":"sn","法羅群島":"fo","墨西哥":"mx","摩納哥":"mc","巴西":"br","洪都拉斯":"hn","以色列":"il","根西島":"gg","所羅門群島":"sb","多米尼加共和國":"do","新西蘭":"nz","匈牙利":"hu","巴勒斯坦領土":"ps","聖馬丁島":"sx","烏干達":"ug","博內爾島，聖尤斯特歇斯聖尤斯特歇斯和薩巴":"bq","柬埔寨":"kh","多哥":"tg","英國":"gb","巴巴多斯":"bb","新澤西州":"je","海地":"ht","丹麥":"dk","巴拿馬":"pa","卡塔爾":"qa","佛得角":"cv","格林納達":"gd","法屬圭亞那":"gf","澳門":"mo","科摩羅":"km","聖馬丁":"mf","科威特":"kw","克羅地亞":"hr","馬提尼克島":"mq","特克斯和凱科斯群島":"tc","捷克共和國":"cz","莫桑比克":"mz","聖巴泰勒米":"bl","西班牙":"es","玻利維亞":"bo","澳大利亞":"au","聖多美和普林西比":"st","阿爾巴尼亞":"al","伊朗":"ir","土耳其":"tr","摩爾多瓦":"md","幾內亞比紹":"gw","布隆迪":"bi","幾內亞":"gn","馬其頓":"mk","希臘":"gr","安提瓜和巴布達":"ag","斯洛文尼亞":"si","哥倫比亞":"co","安圭拉":"ai","南極洲":"aq","約旦":"jo","聖馬力諾":"sm","烏克蘭":"ua","古巴":"cu","智利":"cl","西撒哈拉":"eh","聖基茨和尼維斯":"kn","馬里":"ml","塞舌爾":"sc","埃塞俄比亞":"et","冰島":"is","蒙特塞拉特":"ms","荷蘭":"nl","香港":"hk","厄瓜多爾":"ec","馬來西亞":"my","哥斯達黎加":"cr","羅馬教廷":"va","英屬印度洋領地":"io","蘇丹":"sd","塞爾維亞":"rs","中國":"cn","保加利亞":"bg","馬紹爾群島":"mh","烏拉圭":"uy","巴拉圭":"py","巴哈馬":"bs","東帝汶":"tl","毛里求斯":"mu","列支敦士登":"li","瑞士":"ch","吉爾吉斯斯坦":"kg","加納":"gh","紐埃":"nu","美國":"us","秘魯":"pe","塞拉利昂":"sl","伯利茲":"bz","塞浦路斯":"cy","馬恩島":"im","斐濟":"fj","愛爾蘭":"ie","台灣":"tw","韓國北":"kp","法屬波利尼西亞":"pf","厄立特里亞":"er","伊拉克":"iq","美屬薩摩亞":"as","坦桑尼亞":"tz","馬拉維":"mw","利比亞":"ly","危地馬拉":"gt","圭亞那":"gy","百慕大":"bm","赤道幾內亞":"gq","巴基斯坦":"pk","布維島":"bv","立陶宛":"lt","新加坡":"sg","聖皮埃爾和密克隆":"pm","特里尼達和多巴哥":"tt","諾福克島":"nf","乍得":"td","索馬里":"so","斯洛伐克":"sk","敘利亞":"sy","赫德島和麥當勞群島":"hm","孟加拉國":"bd", "紐西蘭":"nz", "中國大陸":"cn", "帛琉":"pw", "南韓":"kr", "沙烏地阿拉伯": "sa", "阿拉伯聯合大公國": "ae", "坦尚尼亞":"tz", "宏都拉斯":"hn", "模里西斯":"mu", "萬那杜":"vu", "義大利":"it", "毛里塔尼亚":"mr", "茅利塔尼亞伊斯蘭共和國":"mr", "卡達": "qa", "葉門": "ye"
+};
+
+
+</script>
+<style type="text/css">
+/*.drest{
+	color: rgba(0, 0, 0, 0.3);
+}*/
+
+/*tr {
+	background-color: grey;
+}*/
+/*tr:nth-child(even) {
+	background-color: rgba(120, 231, 0, 0.05);
+}*/
+
+.trOver{
+	/*background-color: rgba(120, 231, 0, 1);	*/
+	background-color: rgba(120, 231, 0, 0.05);	
+	/*position: fixed;*/
+}
+</style>
+</body>
+</html>
